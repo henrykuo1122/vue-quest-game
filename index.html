@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
-  <title>練習2</title>
+  <title>簡單的心理測驗遊戲</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/2.5.17/vue.js"></script>
   <style>
     #app {
@@ -15,6 +15,11 @@
     }
     label{
       display: block;
+    }
+    input[type=text]{
+      width: 300px;
+      height: 20px;
+      font-size: 18px;
     }
     .quest{
       margin-bottom: 1em;
@@ -30,26 +35,68 @@
     <h1>簡單的心理測驗遊戲</h1>
 
     <hr>
+    <div v-show="!showEdit">
+      <div class="quest" v-for="(q) in filteredQuestion">
+        <h3>第{{ nowQidx + 1 }}題: {{ q.quest }}</h3>
+        <label v-for="(answer, index) in q.options">
+          <input type="radio" :value="answer.value" v-model="q.selected">
+          {{ index + 1 }}. {{ answer.ans }}
+        </label>
 
-    <div class="quest" v-for="(q, index) in questions">
-      <h3>第{{ index + 1 }}題: {{ q.quest }}</h3>
-      <label v-for="(answer, index) in q.options">
-        <input type="radio" :value="answer.value" v-model="q.selected">
-        {{ index + 1 }}. {{ answer.ans }}
-      </label>
-
+      </div>
+      <button @click="changeQuestion(-1)" :disabled="questionsTop">上一題</button>
+      <button @click="changeQuestion(1)" :disabled="questionsEnd">下一題</button>
+      <button @click="settlement">看結果</button>
+      <button @click="reset">重置</button>
+      <button @click="showEdit = true">設定題目</button>
     </div>
 
-    <button @click="settlement">看結果</button>
-    <button @click="reset">重置</button>
+    <div v-show="showEdit">
+      <div class="quest">
+        <ul>
+          <li v-for="(q, index) in questions">
+            <button @click="deleteQuest(index)">刪除</button>
+            <span>第</span>{{index + 1}}<span>題</span>
+            {{q.quest}}
+          </li>
+        </ul>
+      </div>
+      <div class="quest">
+        題目:<input type="text" v-model="editQuest.quest" />
+        <br />
+        答案:
+        <ul>
+          <li v-for="(opt, index) in editQuest.options">
+            回答 {{index + 1}}
+            <input type="text" v-model="opt.ans" />
+            分數
+            <input type="text" v-model="opt.value" />
+          </li>
+        </ul>
+        <br />
+        <button @click="AddAns">新增回答</button>
+        <hr>
+        <button @click="AddQuest">新增</button>
+      </div>
+
+
+
+      <button @click="backToQuest">返回作答</button>
+    </div>
+
   </div>
 
 
   <script>
-  <script>
   var vm = new Vue({
     el: '#app',
     data: {
+      nowQidx: 0,
+      showEdit: false,
+      editQuest: {
+        quest: '',
+        options: []
+      },
       questions: [
         {
           quest: '如果你是童話故事中，想吃掉三隻小豬的大野狼，你認為使用哪一種方法可以容易吃掉他們？',
@@ -89,16 +136,92 @@
           sum += Number(v.selected);
         });
         return sum;
+      },
+      filteredQuestion() {
+        return this.questions.filter((q, idx) => {
+          if (idx === this.nowQidx) {
+            return [q];
+          }
+        });
+      },
+      questionsTop() {
+        return ( ( this.nowQidx - 1 ) < 0 ) ? true : false;
+      },
+      questionsEnd() {
+        return ( ( this.nowQidx + 1 ) >= this.questions.length ) ? true : false;
       }
     },
     methods: {
       settlement: function(){
+        //let showAns = true;
+        // this.questions.forEach(function(v){
+        //   if (v.selected === null) {
+        //     showAns = false;
+        //   }
+        // });想要用break所以不能用foreach
+        for( let idx = 0 ; idx < this.questions.length; idx++ ) {
+          if (this.questions[idx].selected === null) {
+            alert('尚有題目未回答!');
+            return;
+          }
+        }
         alert('總分: ' + this.total);
       },
       reset: function(){
         this.questions.forEach(function(v){
           v.selected = null;
         });
+        this.nowQidx = 0;
+      },
+      changeQuestion(goOn) {
+        if ( goOn === 1 && this.questions[this.nowQidx].selected === null) {
+          //往下一題時才判斷選答案
+          alert('請先選擇答案!');
+          return;
+        }
+        this.nowQidx += goOn;
+      },
+      AddAns() {
+        this.editQuest.options.push({ ans: '', value: '' });
+      },
+      deleteQuest(idx) {
+        this.questions.splice(idx, 1);
+      },
+      resetEdit() {
+        this.editQuest = {
+            quest: '',
+            options: []
+        };
+      },
+      AddQuest() {
+        if (this.editQuest.quest.length === 0) {
+          alert('請輸入題目');
+          return;
+        }
+        if(this.editQuest.options.length === 0) {
+          alert('請新增答案');
+          return;
+        }
+
+        var options = [];
+        for(let i = 0; i < this.editQuest.options.length; i++){
+          if(this.editQuest.options[i].ans === '' || this.editQuest.options[i].value === '' || isNaN(this.editQuest.options[i].value)) {
+            alert('請確認答案是否填寫正確');
+            return;
+          }
+          options.push({ans: this.editQuest.options[i].ans, value: Number(this.editQuest.options[i].value)});
+        }
+
+        this.questions.push({
+          quest: this.editQuest.quest,
+          options,
+          selected: null,
+        });
+        this.resetEdit();
+      },
+      backToQuest () {
+        this.showEdit = false;
+        this.reset();
       }
     },
   });
